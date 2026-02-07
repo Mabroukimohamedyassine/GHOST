@@ -2,7 +2,7 @@
 """
 GhostConnect - Automated Anonymous Browsing Kill Switch
 A robust CLI tool for creating a secure, anonymous browsing environment using LibreWolf + Tor
-Version 2.0 - Refactored with LibreWolf (Pre-hardened browser, no manual configuration needed)
+Version 2.0.1 - Fixed Kali Linux installation (maps kali-rolling to Debian unstable)
 """
 
 import os
@@ -56,7 +56,7 @@ class GhostConnector:
 ║              ╚█████╔╝╚█████╔╝██║░╚███║██║░╚███║             ║
 ║              ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░╚══╝             ║
 ║                                                               ║
-║          Anonymous Browsing Kill Switch v2.0                 ║
+║          Anonymous Browsing Kill Switch v2.0.1               ║
 ║               Powered by LibreWolf + Tor                     ║
 ╚═══════════════════════════════════════════════════════════════╝
     """
@@ -232,28 +232,42 @@ class GhostConnector:
                 return False
 
             distro = result.stdout.strip()
-            self._print(f"Detected distribution: {distro}", "info")
+            self._print(f"Detected distribution codename: {distro}", "info")
+
+            # KALI FIX: Map kali-rolling to a valid Debian codename
+            # LibreWolf repository doesn't have kali-rolling, but unstable works
+            if distro == "kali-rolling":
+                distro = "unstable"
+                self._print(f"Kali Linux detected - Using Debian '{distro}' repository", "info")
+
+            # Map other Kali variants if needed
+            elif distro.startswith("kali-"):
+                # Kali is based on Debian testing/unstable
+                distro = "unstable"
+                self._print(f"Kali variant detected - Using Debian '{distro}' repository", "info")
+
+            self._print(f"Using repository codename: {distro}", "success")
 
             # Download and add LibreWolf GPG key
             self._print("Adding LibreWolf GPG key...", "info")
             gpg_keyring = Path("/usr/share/keyrings/librewolf.gpg")
 
-            # Download keyring
-            if not self._run_command([
-                "wget", "-qO-", "https://deb.librewolf.net/keyring.gpg"
-            ], check=False, capture=False):
-                self._print("Failed to download LibreWolf GPG key", "warning")
-                # Try alternative method
-                self._run_command([
-                    "bash", "-c",
-                    "wget -qO- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
-                ], check=False)
+            # Download and dearmor GPG key in one command
+            gpg_result = self._run_command([
+                "bash", "-c",
+                "wget --quiet -O- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
+            ], check=False)
+
+            if not gpg_result or gpg_result.returncode != 0:
+                self._print("Failed to download and add LibreWolf GPG key", "error")
+                return False
+
+            # Verify GPG key was created
+            if gpg_keyring.exists():
+                self._print(f"GPG key added successfully: {gpg_keyring}", "success")
             else:
-                # Dearmor and save the key
-                self._run_command([
-                    "bash", "-c",
-                    "wget -qO- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
-                ], check=False)
+                self._print("GPG key file not found after download", "error")
+                return False
 
             # Add LibreWolf repository
             self._print("Adding LibreWolf repository...", "info")
@@ -263,6 +277,7 @@ class GhostConnector:
             try:
                 sources_list.write_text(repo_line + "\n")
                 self._print(f"Repository added to {sources_list}", "success")
+                self._print(f"Repository line: {repo_line}", "info")
             except Exception as e:
                 self._print(f"Failed to write repository file: {str(e)}", "error")
                 return False
@@ -271,6 +286,7 @@ class GhostConnector:
             self._print("Updating package list with LibreWolf repository...", "info")
             if not self._run_command(["apt", "update"], check=False):
                 self._print("Failed to update package list", "error")
+                self._print("Note: Check if repository URL is valid", "warning")
                 return False
 
             # Install LibreWolf

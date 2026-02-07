@@ -1,12 +1,22 @@
-# GhostConnect - Anonymous Browsing Kill Switch v2.0
+# GhostConnect - Anonymous Browsing Kill Switch v2.0.1
 
 A robust, automated CLI tool for creating a secure anonymous browsing environment on Kali Linux using Tor, ProxyChains, and **LibreWolf** (privacy-hardened Firefox fork).
+
+## What's New in v2.0.1
+
+### 🐛 Critical Bug Fix
+- **Fixed Kali Linux installation** - Resolved 404 error when installing LibreWolf
+  - Automatically maps `kali-rolling` to Debian `unstable` repository
+  - Supports all Kali variants (kali-rolling, kali-dev, etc.)
+  - Improved GPG key download with `wget --quiet`
+  - Enhanced error messages and logging
 
 ## What's New in v2.0
 
 - **Replaced Firefox with LibreWolf** - Pre-hardened browser with privacy by default
 - **No Manual Configuration** - LibreWolf comes secure out of the box (WebRTC disabled, fingerprinting resistance, etc.)
 - **Automated LibreWolf Installation** - Automatically adds repository and installs LibreWolf
+- **Kali Linux Support** - Properly detects and maps Kali rolling to compatible Debian repository
 - **Simplified Codebase** - Removed ~200 lines of manual Firefox hardening code
 - **Better User Experience** - Runs as SUDO_USER to avoid permission issues
 

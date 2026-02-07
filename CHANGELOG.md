@@ -2,6 +2,40 @@
 
 All notable changes to GhostConnect will be documented in this file.
 
+## [2.0.1] - 2025-02-07
+
+### 🐛 Critical Bug Fix: Kali Linux Support
+
+### Fixed
+- **LibreWolf installation on Kali Linux** - Fixed 404 Not Found error
+  - Issue: Script used `kali-rolling` codename which doesn't exist in LibreWolf repository
+  - Solution: Automatically maps Kali codenames to Debian `unstable`
+  - Detects: `kali-rolling`, `kali-dev`, and all `kali-*` variants
+  - Maps to: `unstable` (compatible with Kali's Debian testing/unstable base)
+
+### Improved
+- **GPG key download** - Simplified to single robust command using `wget --quiet`
+- **Error messages** - Added verification that GPG key file was created
+- **Logging** - Shows detected codename, mapping decision, and final repository line
+- **Error handling** - Better messages if repository URL fails
+
+### Technical Details
+```python
+# Before (Broken on Kali):
+distro = "kali-rolling"  # From lsb_release
+repo = f"http://deb.librewolf.net {distro} main"
+# Result: 404 Not Found
+
+# After (Fixed):
+distro = "kali-rolling"  # Detected
+if distro == "kali-rolling" or distro.startswith("kali-"):
+    distro = "unstable"  # Mapped
+repo = f"http://deb.librewolf.net {distro} main"
+# Result: Success!
+```
+
+---
+
 ## [2.0.0] - 2025-02-07
 
 ### 🎉 Major Refactor: Firefox → LibreWolf
