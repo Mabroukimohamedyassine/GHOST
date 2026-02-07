@@ -2,7 +2,7 @@
 """
 GhostConnect - Automated Anonymous Browsing Kill Switch
 A robust CLI tool for creating a secure, anonymous browsing environment using LibreWolf + Tor
-Version 2.0.1 - Fixed Kali Linux installation (maps kali-rolling to Debian unstable)
+Version 2.1.0 - Universal LibreWolf installation using extrepo (works on Kali, Debian, Ubuntu)
 """
 
 import os
@@ -56,8 +56,8 @@ class GhostConnector:
 ║              ╚█████╔╝╚█████╔╝██║░╚███║██║░╚███║             ║
 ║              ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░╚══╝             ║
 ║                                                               ║
-║          Anonymous Browsing Kill Switch v2.0.1               ║
-║               Powered by LibreWolf + Tor                     ║
+║          Anonymous Browsing Kill Switch v2.1.0               ║
+║            Powered by LibreWolf + Tor + extrepo              ║
 ╚═══════════════════════════════════════════════════════════════╝
     """
 
@@ -212,90 +212,69 @@ class GhostConnector:
         return True
 
     def _install_librewolf(self) -> bool:
-        """Install LibreWolf browser with repository setup"""
-        self._print("Installing LibreWolf...", "info")
+        """Install LibreWolf browser using extrepo (universal method)"""
+        self._print("Installing LibreWolf using extrepo...", "info")
 
         try:
-            # Install prerequisites
-            self._print("Installing prerequisites (wget, gpg, apt-transport-https)...", "info")
-            prereqs = ["wget", "gpg", "apt-transport-https", "lsb-release"]
+            # Step 1: Clean up old/broken repository files
+            self._print("Cleaning up old LibreWolf configuration files...", "info")
 
-            for prereq in prereqs:
-                result = self._run_command(["which", prereq.split('-')[0]], check=False, capture=True)
-                if not result or result.returncode != 0:
-                    self._run_command(["apt", "install", "-y", prereq], check=False)
+            old_sources = Path("/etc/apt/sources.list.d/librewolf.list")
+            old_keyring = Path("/usr/share/keyrings/librewolf.gpg")
 
-            # Get distribution codename
-            result = self._run_command(["lsb_release", "-sc"], check=False, capture=True)
-            if not result or result.returncode != 0:
-                self._print("Could not determine distribution codename", "error")
-                return False
+            if old_sources.exists():
+                try:
+                    old_sources.unlink()
+                    self._print("Removed old repository file", "success")
+                except Exception as e:
+                    self._print(f"Warning: Could not remove old repo file: {str(e)}", "warning")
 
-            distro = result.stdout.strip()
-            self._print(f"Detected distribution codename: {distro}", "info")
+            if old_keyring.exists():
+                try:
+                    old_keyring.unlink()
+                    self._print("Removed old GPG keyring", "success")
+                except Exception as e:
+                    self._print(f"Warning: Could not remove old keyring: {str(e)}", "warning")
 
-            # KALI FIX: Map kali-rolling to a valid Debian codename
-            # LibreWolf repository doesn't have kali-rolling, but unstable works
-            if distro == "kali-rolling":
-                distro = "unstable"
-                self._print(f"Kali Linux detected - Using Debian '{distro}' repository", "info")
+            # Step 2: Install extrepo
+            self._print("Installing extrepo package manager...", "info")
 
-            # Map other Kali variants if needed
-            elif distro.startswith("kali-"):
-                # Kali is based on Debian testing/unstable
-                distro = "unstable"
-                self._print(f"Kali variant detected - Using Debian '{distro}' repository", "info")
-
-            self._print(f"Using repository codename: {distro}", "success")
-
-            # Download and add LibreWolf GPG key
-            self._print("Adding LibreWolf GPG key...", "info")
-            gpg_keyring = Path("/usr/share/keyrings/librewolf.gpg")
-
-            # Download and dearmor GPG key in one command
-            gpg_result = self._run_command([
-                "bash", "-c",
-                "wget --quiet -O- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
-            ], check=False)
-
-            if not gpg_result or gpg_result.returncode != 0:
-                self._print("Failed to download and add LibreWolf GPG key", "error")
-                return False
-
-            # Verify GPG key was created
-            if gpg_keyring.exists():
-                self._print(f"GPG key added successfully: {gpg_keyring}", "success")
-            else:
-                self._print("GPG key file not found after download", "error")
-                return False
-
-            # Add LibreWolf repository
-            self._print("Adding LibreWolf repository...", "info")
-            repo_line = f"deb [arch=amd64 signed-by=/usr/share/keyrings/librewolf.gpg] http://deb.librewolf.net {distro} main"
-            sources_list = Path("/etc/apt/sources.list.d/librewolf.list")
-
-            try:
-                sources_list.write_text(repo_line + "\n")
-                self._print(f"Repository added to {sources_list}", "success")
-                self._print(f"Repository line: {repo_line}", "info")
-            except Exception as e:
-                self._print(f"Failed to write repository file: {str(e)}", "error")
-                return False
-
-            # Update package list
-            self._print("Updating package list with LibreWolf repository...", "info")
+            # Update package list first
             if not self._run_command(["apt", "update"], check=False):
                 self._print("Failed to update package list", "error")
-                self._print("Note: Check if repository URL is valid", "warning")
                 return False
 
-            # Install LibreWolf
+            # Install extrepo
+            if not self._run_command(["apt", "install", "-y", "extrepo"], check=False):
+                self._print("Failed to install extrepo", "error")
+                return False
+
+            self._print("extrepo installed successfully", "success")
+
+            # Step 3: Enable LibreWolf repository via extrepo
+            self._print("Enabling LibreWolf repository via extrepo...", "info")
+
+            if not self._run_command(["extrepo", "enable", "librewolf"], check=False):
+                self._print("Failed to enable LibreWolf via extrepo", "error")
+                return False
+
+            self._print("LibreWolf repository enabled successfully", "success")
+
+            # Step 4: Update package list with new repository
+            self._print("Updating package list with LibreWolf repository...", "info")
+
+            if not self._run_command(["apt", "update"], check=False):
+                self._print("Failed to update package list", "error")
+                return False
+
+            # Step 5: Install LibreWolf
             self._print("Installing LibreWolf package...", "info")
+
             if not self._run_command(["apt", "install", "-y", "librewolf"], check=False):
                 self._print("Failed to install LibreWolf package", "error")
                 return False
 
-            # Verify installation
+            # Step 6: Verify installation
             verify = self._run_command(["which", "librewolf"], check=False, capture=True)
             if verify and verify.returncode == 0:
                 self._print(f"LibreWolf installed successfully: {verify.stdout.strip()}", "success")

@@ -2,6 +2,62 @@
 
 All notable changes to GhostConnect will be documented in this file.
 
+## [2.1.0] - 2025-02-07
+
+### 🚀 Major Improvement: Universal Installation Method
+
+### Changed
+- **Complete rewrite of LibreWolf installation** - Now uses `extrepo` for universal compatibility
+  - **Method**: Install via `extrepo enable librewolf` instead of manual repository setup
+  - **Benefits**: Works universally on Kali, Debian, Ubuntu, and derivatives
+  - **Reliability**: No more codename detection/mapping needed
+  - **Simplicity**: Reduced installation code by ~60 lines
+  - **Maintenance**: extrepo handles repository URLs and GPG keys automatically
+
+### Added
+- **Cleanup step** - Automatically removes old/broken LibreWolf configuration files
+  - Removes `/etc/apt/sources.list.d/librewolf.list` if exists
+  - Removes `/usr/share/keyrings/librewolf.gpg` if exists
+  - Ensures clean installation every time
+
+### Technical Details
+
+**Old Method (v2.0.1):**
+```bash
+# Manual repository setup
+1. Detect distro codename (lsb_release -sc)
+2. Map kali-rolling → unstable
+3. Download GPG key manually
+4. Write repository file manually
+5. apt update && apt install librewolf
+```
+
+**New Method (v2.1.0):**
+```bash
+# Using extrepo (universal)
+1. Clean old files
+2. apt install extrepo
+3. extrepo enable librewolf  # Handles everything automatically
+4. apt update && apt install librewolf
+```
+
+### Why This Change?
+
+The previous method had issues:
+- ❌ Required distribution-specific codename mapping
+- ❌ Broke when LibreWolf changed repository structure
+- ❌ Manual GPG key management
+- ❌ Kali-specific workarounds needed
+
+The new `extrepo` method:
+- ✅ Works on all Debian-based distros automatically
+- ✅ No codename detection needed
+- ✅ Managed by Debian package maintainers
+- ✅ Self-updating repository information
+- ✅ Cleaner, more maintainable code
+
+---
+
 ## [2.0.1] - 2025-02-07
 
 ### 🐛 Critical Bug Fix: Kali Linux Support
