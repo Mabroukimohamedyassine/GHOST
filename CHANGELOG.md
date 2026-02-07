@@ -2,6 +2,38 @@
 
 All notable changes to GhostConnect will be documented in this file.
 
+## [2.1.1] - 2025-02-07
+
+### 🔧 Network Robustness Improvements
+
+### Fixed
+- **IPv6 Network Unreachable errors** - Forces IPv4 for all APT operations
+  - Added `-o Acquire::ForceIPv4=true` to all apt update and install commands
+  - Prevents failures on networks with misconfigured IPv6
+
+### Added
+- **Retry logic for LibreWolf installation** - 3 automatic retry attempts with 2-second delays
+  - Handles flaky internet connections gracefully
+  - Shows retry progress to user
+  - Provides clear error message if all retries fail
+
+### Changed
+- All dependency installations now force IPv4 (Tor, ProxyChains, extrepo, LibreWolf)
+- More resilient to network issues during installation
+
+### Technical Details
+```bash
+# Before (v2.1.0):
+apt install librewolf -y
+# Could fail with: "Network is unreachable" on misconfigured IPv6
+
+# After (v2.1.1):
+apt -o Acquire::ForceIPv4=true install librewolf -y
+# Forces IPv4, retries 3 times on failure
+```
+
+---
+
 ## [2.1.0] - 2025-02-07
 
 ### 🚀 Major Improvement: Universal Installation Method

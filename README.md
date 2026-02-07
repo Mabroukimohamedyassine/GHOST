@@ -1,6 +1,17 @@
-# GhostConnect - Anonymous Browsing Kill Switch v2.1.0
+# GhostConnect - Anonymous Browsing Kill Switch v2.1.1
 
 A robust, automated CLI tool for creating a secure anonymous browsing environment on Kali Linux using Tor, ProxyChains, and **LibreWolf** (privacy-hardened Firefox fork).
+
+## What's New in v2.1.1
+
+### 🔧 Network Robustness
+- **Fixed IPv6 errors** - Forces IPv4 for all package installations
+  - Resolves "Network is unreachable" errors on misconfigured IPv6 networks
+  - All apt commands now use `-o Acquire::ForceIPv4=true`
+- **Retry logic** - LibreWolf installation automatically retries 3 times
+  - Handles temporary network glitches
+  - 2-second delays between retries
+  - Clear error messages if all attempts fail
 
 ## What's New in v2.1.0
 

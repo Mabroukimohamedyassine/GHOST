@@ -2,7 +2,7 @@
 """
 GhostConnect - Automated Anonymous Browsing Kill Switch
 A robust CLI tool for creating a secure, anonymous browsing environment using LibreWolf + Tor
-Version 2.1.0 - Universal LibreWolf installation using extrepo (works on Kali, Debian, Ubuntu)
+Version 2.1.1 - Enhanced network robustness (IPv4 forcing + retry logic for flaky connections)
 """
 
 import os
@@ -56,7 +56,7 @@ class GhostConnector:
 ║              ╚█████╔╝╚█████╔╝██║░╚███║██║░╚███║             ║
 ║              ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░╚══╝             ║
 ║                                                               ║
-║          Anonymous Browsing Kill Switch v2.1.0               ║
+║          Anonymous Browsing Kill Switch v2.1.1               ║
 ║            Powered by LibreWolf + Tor + extrepo              ║
 ╚═══════════════════════════════════════════════════════════════╝
     """
@@ -186,16 +186,16 @@ class GhostConnector:
             self._print(f"Missing dependencies: {', '.join(missing_deps)}", "warning")
             self._print("Installing missing dependencies...", "info")
 
-            # Update package list
+            # Update package list (force IPv4)
             self._print("Updating package list...", "info")
-            if not self._run_command(["apt", "update"], check=False):
+            if not self._run_command(["apt", "-o", "Acquire::ForceIPv4=true", "update"], check=False):
                 self._print("Failed to update package list", "error")
                 return False
 
-            # Install missing packages
+            # Install missing packages (force IPv4)
             for package in missing_deps:
                 self._print(f"Installing {package}...", "info")
-                if not self._run_command(["apt", "install", "-y", package], check=False):
+                if not self._run_command(["apt", "-o", "Acquire::ForceIPv4=true", "install", "-y", package], check=False):
                     self._print(f"Failed to install {package}", "error")
                     return False
                 self._print(f"{package} installed successfully", "success")
@@ -239,13 +239,13 @@ class GhostConnector:
             # Step 2: Install extrepo
             self._print("Installing extrepo package manager...", "info")
 
-            # Update package list first
-            if not self._run_command(["apt", "update"], check=False):
+            # Update package list first (force IPv4)
+            if not self._run_command(["apt", "-o", "Acquire::ForceIPv4=true", "update"], check=False):
                 self._print("Failed to update package list", "error")
                 return False
 
-            # Install extrepo
-            if not self._run_command(["apt", "install", "-y", "extrepo"], check=False):
+            # Install extrepo (force IPv4)
+            if not self._run_command(["apt", "-o", "Acquire::ForceIPv4=true", "install", "-y", "extrepo"], check=False):
                 self._print("Failed to install extrepo", "error")
                 return False
 
@@ -260,18 +260,44 @@ class GhostConnector:
 
             self._print("LibreWolf repository enabled successfully", "success")
 
-            # Step 4: Update package list with new repository
+            # Step 4: Update package list with new repository (force IPv4)
             self._print("Updating package list with LibreWolf repository...", "info")
 
-            if not self._run_command(["apt", "update"], check=False):
+            if not self._run_command(["apt", "-o", "Acquire::ForceIPv4=true", "update"], check=False):
                 self._print("Failed to update package list", "error")
                 return False
 
-            # Step 5: Install LibreWolf
+            # Step 5: Install LibreWolf with retry loop (force IPv4)
             self._print("Installing LibreWolf package...", "info")
 
-            if not self._run_command(["apt", "install", "-y", "librewolf"], check=False):
-                self._print("Failed to install LibreWolf package", "error")
+            max_retries = 3
+            retry_count = 0
+            install_success = False
+
+            while retry_count < max_retries and not install_success:
+                if retry_count > 0:
+                    self._print(f"Retry attempt {retry_count}/{max_retries}...", "warning")
+                    time.sleep(2)  # Wait 2 seconds between retries
+
+                result = self._run_command([
+                    "apt",
+                    "-o", "Acquire::ForceIPv4=true",
+                    "install",
+                    "-y",
+                    "librewolf"
+                ], check=False)
+
+                if result and result.returncode == 0:
+                    install_success = True
+                    break
+
+                retry_count += 1
+                if retry_count < max_retries:
+                    self._print(f"Installation failed, retrying... ({retry_count}/{max_retries})", "warning")
+
+            if not install_success:
+                self._print("Failed to install LibreWolf after multiple attempts", "error")
+                self._print("Network issue or repository temporarily unavailable", "warning")
                 return False
 
             # Step 6: Verify installation
