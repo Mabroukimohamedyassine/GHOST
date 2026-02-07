@@ -1,0 +1,90 @@
+MIT License
+
+Copyright (c) 2025 GhostConnect
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+DISCLAIMER AND TERMS OF USE
+
+This software ("GhostConnect") is provided for educational, privacy protection,
+and authorized security research purposes only.
+
+AUTHORIZED USE CASES:
+- Personal privacy protection
+- Authorized security research and testing
+- Penetration testing with proper authorization
+- Educational and training purposes
+- Defensive security operations
+- CTF (Capture The Flag) competitions
+- Security tool development and testing
+
+PROHIBITED USE:
+- Any illegal activities
+- Unauthorized access to computer systems
+- Malicious purposes or intent to harm
+- Evasion of law enforcement
+- Violation of local, state, or federal laws
+- Violation of terms of service of third-party systems
+- Any activity that causes harm to others
+
+ACKNOWLEDGMENT:
+By using this software, you acknowledge that:
+
+1. You are solely responsible for your actions while using this software
+2. You will use this software only for lawful purposes
+3. You understand that anonymity tools do not guarantee complete anonymity
+4. You will not use this software to engage in illegal activities
+5. You are aware of and will comply with all applicable laws and regulations
+6. The authors and contributors are not responsible for any misuse
+7. The authors and contributors are not liable for any damages arising from use
+
+PRIVACY AND SECURITY NOTICE:
+- This tool aids privacy but is NOT a guarantee of complete anonymity
+- Tor network usage can be detected by network administrators
+- Advanced adversaries may be able to correlate traffic
+- Using Tor may be restricted or illegal in some jurisdictions
+- You are responsible for understanding and complying with local laws
+
+TECHNICAL DISCLAIMER:
+- This software is provided "AS IS" without warranty of any kind
+- The authors make no guarantees about security, privacy, or anonymity
+- Users should understand the limitations of Tor and proxy technologies
+- Regular updates and security best practices are the user's responsibility
+
+LIABILITY:
+The authors, contributors, and distributors of this software shall not be
+held liable for any damages, legal issues, or consequences arising from the
+use or misuse of this software. Users assume all risks and responsibilities.
+
+If you do not agree with these terms, do not use this software.
+
+---
+
+Third-Party Components:
+
+This software uses the following third-party components:
+- Tor (The Tor Project, Inc.) - https://www.torproject.org
+- ProxyChains - https://github.com/haad/proxychains
+- Firefox (Mozilla Foundation) - https://www.mozilla.org/firefox
+- Rich (Will McGugan) - https://github.com/Textualize/rich
+- Colorama - https://github.com/tartley/colorama
+
+All third-party components are subject to their respective licenses.
