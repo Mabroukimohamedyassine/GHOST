@@ -16,10 +16,18 @@ All notable changes to GhostConnect will be documented in this file.
   - Handles flaky internet connections gracefully
   - Shows retry progress to user
   - Provides clear error message if all retries fail
+- **Persistent Mode** - Tool now stays running even after browser closes
+  - Tool only exits when user presses CTRL+C
+  - Tor remains active for browser reopening
+  - Allows closing/reopening LibreWolf without restarting tool
+  - Background browser launch (non-blocking)
 
 ### Changed
 - All dependency installations now force IPv4 (Tor, ProxyChains, extrepo, LibreWolf)
 - More resilient to network issues during installation
+- Browser launched in background without waiting for exit
+- Cleanup only triggered by CTRL+C signal, not browser close
+- Added infinite wait loop with clear user instructions
 
 ### Technical Details
 ```bash
@@ -30,6 +38,20 @@ apt install librewolf -y
 # After (v2.1.1):
 apt -o Acquire::ForceIPv4=true install librewolf -y
 # Forces IPv4, retries 3 times on failure
+```
+
+**Persistent Mode Implementation:**
+```python
+# Before: Tool waited for browser to exit
+self.librewolf_process = subprocess.Popen(...)
+self.librewolf_process.wait()  # Blocked until browser closed
+self.cleanup()  # Immediate cleanup
+
+# After: Tool stays running until CTRL+C
+subprocess.Popen(...)  # Launch in background
+while True:
+    time.sleep(1)  # Wait indefinitely
+# Cleanup only via signal handler (CTRL+C)
 ```
 
 ---

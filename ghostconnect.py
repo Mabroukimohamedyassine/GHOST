@@ -64,7 +64,6 @@ class GhostConnector:
     def __init__(self):
         """Initialize GhostConnector with necessary paths and state"""
         self.tor_process = None
-        self.librewolf_process = None
         self.proxychains_config = Path("/etc/proxychains4.conf")
         self.proxychains_backup = Path("/etc/proxychains4.conf.ghost.bak")
         self.sudo_user = os.environ.get('SUDO_USER', 'root')
@@ -447,8 +446,8 @@ socks5 127.0.0.1 9050
 
                 preexec = demote
 
-            # Launch command
-            self.librewolf_process = subprocess.Popen([
+            # Launch command (don't save the process handle since we won't wait for it)
+            subprocess.Popen([
                 "proxychains4",
                 "librewolf",
                 "--private-window",
@@ -462,10 +461,6 @@ socks5 127.0.0.1 9050
             self._print("LibreWolf launched successfully", "success")
             self._print("Ghost Mode Active - Anonymous browsing enabled", "success")
             self._print("LibreWolf will open to Tor Check page", "info")
-            self._print("Press CTRL+C to deactivate Ghost Mode", "warning")
-
-            # Wait for LibreWolf to exit
-            self.librewolf_process.wait()
 
             return True
 
@@ -477,24 +472,13 @@ socks5 127.0.0.1 9050
         """Clean up resources and stop services"""
         self._print("Initiating Ghost Mode shutdown...", "warning")
 
-        # Kill LibreWolf if running
-        if self.librewolf_process:
-            try:
-                self._print("Terminating LibreWolf...", "info")
-                self.librewolf_process.terminate()
-                self.librewolf_process.wait(timeout=5)
-                self._print("LibreWolf terminated", "success")
-            except subprocess.TimeoutExpired:
-                self._print("Force killing LibreWolf...", "warning")
-                self.librewolf_process.kill()
-            except Exception as e:
-                self._print(f"Error terminating LibreWolf: {str(e)}", "error")
-
-        # Also ensure no stray LibreWolf processes
+        # Kill all LibreWolf processes
         try:
+            self._print("Terminating all LibreWolf instances...", "info")
             self._run_command(["pkill", "-9", "librewolf"], check=False)
-        except Exception:
-            pass
+            self._print("LibreWolf terminated", "success")
+        except Exception as e:
+            self._print(f"Error terminating LibreWolf: {str(e)}", "warning")
 
         # Stop Tor service
         self._print("Stopping Tor service...", "info")
@@ -548,9 +532,18 @@ socks5 127.0.0.1 9050
             # Launch LibreWolf
             self.launch_librewolf()
 
-            # Phase 3: Cleanup (triggered by LibreWolf exit or CTRL+C)
-            self._print("\n=== Phase 3: Cleanup ===", "info")
-            self.cleanup()
+            # Keep running until CTRL+C
+            self._print("\n=== Ghost Mode Running ===", "success")
+            self._print("Press CTRL+C to stop Ghost Mode and cleanup", "info")
+            self._print("Note: Closing LibreWolf will NOT stop Ghost Mode", "warning")
+
+            # Wait indefinitely until signal handler is triggered
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                # This should be caught by signal handler, but just in case
+                pass
 
             return True
 
