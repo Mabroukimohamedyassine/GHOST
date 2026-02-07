@@ -1,23 +1,44 @@
-# GhostConnect - Anonymous Browsing Kill Switch
+# GhostConnect - Anonymous Browsing Kill Switch v2.0
 
-A robust, automated CLI tool for creating a secure anonymous browsing environment on Kali Linux using Tor, ProxyChains, and Firefox.
+A robust, automated CLI tool for creating a secure anonymous browsing environment on Kali Linux using Tor, ProxyChains, and **LibreWolf** (privacy-hardened Firefox fork).
+
+## What's New in v2.0
+
+- **Replaced Firefox with LibreWolf** - Pre-hardened browser with privacy by default
+- **No Manual Configuration** - LibreWolf comes secure out of the box (WebRTC disabled, fingerprinting resistance, etc.)
+- **Automated LibreWolf Installation** - Automatically adds repository and installs LibreWolf
+- **Simplified Codebase** - Removed ~200 lines of manual Firefox hardening code
+- **Better User Experience** - Runs as SUDO_USER to avoid permission issues
 
 ## Features
 
-- **Automated Setup**: Checks and installs all dependencies (Tor, ProxyChains4, Firefox)
+- **Automated Setup**: Checks and installs all dependencies (Tor, ProxyChains4, LibreWolf)
 - **Intelligent Configuration**: Automatically configures ProxyChains for optimal security
-- **Isolated Browser Profile**: Creates a dedicated Firefox profile with hardened privacy settings
-- **DNS Leak Prevention**: Disables WebRTC, IPv6, and enforces DNS through Tor
+- **LibreWolf Browser**: Privacy-hardened Firefox fork that's secure by default
+- **DNS Leak Prevention**: Enforces DNS through Tor, disables IPv6 leaks
 - **Bootstrap Detection**: Waits for Tor to establish circuits before launching browser
 - **Clean Kill Switch**: CTRL+C cleanly terminates everything and normalizes connection
 - **Professional UI**: Rich terminal interface with progress indicators and status messages
+
+## Why LibreWolf?
+
+LibreWolf is a Firefox fork with **built-in privacy hardening**:
+- ✓ WebRTC disabled (prevents IP leaks)
+- ✓ Telemetry removed
+- ✓ Fingerprinting resistance enabled
+- ✓ Auto-delete cookies on close
+- ✓ No Google/Mozilla telemetry
+- ✓ uBlock Origin included
+- ✓ Private by default
+
+This means **no manual configuration needed** - it works securely out of the box!
 
 ## Architecture
 
 The tool follows a modular design with three main phases:
 
-1. **Check & Fix Phase**: Verifies root privileges, installs dependencies, configures ProxyChains
-2. **Launch Phase**: Starts Tor, waits for bootstrap, launches isolated Firefox
+1. **Check & Fix Phase**: Verifies root privileges, installs dependencies (including LibreWolf repository setup), configures ProxyChains
+2. **Launch Phase**: Starts Tor, waits for bootstrap, launches LibreWolf in private mode
 3. **Cleanup Phase**: Terminates browser, stops Tor, restores configurations
 
 ## Prerequisites
@@ -56,37 +77,44 @@ sudo python3 ghostconnect.py
 ### What Happens
 
 1. **Root Check**: Ensures you have proper privileges
-2. **Dependency Installation**: Auto-installs Tor, ProxyChains4, and Firefox if missing
+2. **Dependency Installation**: Auto-installs Tor, ProxyChains4, and LibreWolf if missing
+   - Adds LibreWolf repository to APT sources
+   - Imports LibreWolf GPG key
+   - Installs LibreWolf package
 3. **Configuration**:
    - Backs up original ProxyChains config
    - Configures strict chain mode with DNS proxying
-   - Creates isolated Firefox profile "GhostProfile"
-   - Injects privacy settings (disables WebRTC, IPv6, telemetry, etc.)
+   - **No browser hardening needed** - LibreWolf is pre-hardened!
 4. **Tor Launch**: Starts Tor service and waits for circuit establishment
-5. **Browser Launch**: Opens Firefox through ProxyChains in anonymous mode
+5. **Browser Launch**: Opens LibreWolf through ProxyChains with `--private-window` flag
+   - Opens directly to https://check.torproject.org to verify Tor connection
 6. **Active Monitoring**: Displays status and waits for user action
 7. **Clean Exit**: Press CTRL+C to cleanly shut down everything
 
-### Privacy Settings Applied
+### Privacy Features (Built into LibreWolf)
 
-The tool automatically configures Firefox with:
+LibreWolf comes with these privacy features **pre-configured**:
 
 - **WebRTC disabled** - Prevents IP leaks through WebRTC
 - **IPv6 disabled** - Forces IPv4 to prevent IPv6 leaks
-- **Direct proxy mode** - Lets ProxyChains handle routing
 - **Fingerprinting resistance** - Reduces browser fingerprinting
 - **First-party isolation** - Isolates cookies per domain
-- **Telemetry disabled** - Blocks all Firefox telemetry
+- **No telemetry** - Zero Mozilla or third-party telemetry
 - **DNS prefetching disabled** - Prevents DNS leaks
-- **Clear on shutdown** - Removes traces after closing
+- **Tracking protection** - Enhanced tracking protection enabled
+- **Auto-delete data** - Clears cookies and cache on close
+- **uBlock Origin** - Ad/tracker blocking built-in
+- **HTTPS-Only mode** - Forces HTTPS connections
+
+No manual configuration required!
 
 ## Security Notes
 
 ### What This Tool Does
 
-- Routes all Firefox traffic through Tor network
+- Routes all LibreWolf traffic through Tor network
 - Prevents DNS leaks
-- Disables WebRTC IP leaks
+- Uses LibreWolf's built-in privacy protections
 - Creates isolated browsing environment
 - Cleans up after itself
 
@@ -124,13 +152,17 @@ sudo tail -f /var/log/tor/log
 sudo service tor restart
 ```
 
-### Firefox won't launch
+### LibreWolf won't launch
 ```bash
-# Check if Firefox is already running
-ps aux | grep firefox
+# Check if LibreWolf is already running
+ps aux | grep librewolf
 
 # Kill existing instances
-pkill -9 firefox
+pkill -9 librewolf
+
+# Verify LibreWolf installation
+which librewolf
+librewolf --version
 
 # Verify ProxyChains config
 cat /etc/proxychains4.conf
@@ -145,16 +177,19 @@ sudo netstat -tulpn | grep 9050
 sudo service tor stop
 ```
 
-### Profile creation fails
+### LibreWolf installation fails
 ```bash
-# Check Firefox profile directory
-ls -la ~/.mozilla/firefox/
+# Check repository file
+cat /etc/apt/sources.list.d/librewolf.list
 
-# Manually create profile
-firefox -CreateProfile GhostProfile
+# Manually add repository
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/librewolf.gpg] http://deb.librewolf.net $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/librewolf.list
 
-# Check profiles
-firefox -P
+# Re-add GPG key
+wget -qO- https://deb.librewolf.net/keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/librewolf.gpg
+
+# Update and install
+sudo apt update && sudo apt install -y librewolf
 ```
 
 ## File Structure
@@ -170,7 +205,8 @@ GhostConnect/
 ## Configuration Files Modified
 
 - **/etc/proxychains4.conf** - ProxyChains configuration (backed up to .ghost.bak)
-- **~/.mozilla/firefox/[profile]/user.js** - Firefox privacy settings
+- **/etc/apt/sources.list.d/librewolf.list** - LibreWolf repository (created during install)
+- **/usr/share/keyrings/librewolf.gpg** - LibreWolf GPG key (created during install)
 
 ## Technical Details
 
@@ -236,7 +272,7 @@ For issues, questions, or suggestions:
 Built with:
 - [Tor Project](https://www.torproject.org/)
 - [ProxyChains](https://github.com/haad/proxychains)
-- [Firefox](https://www.mozilla.org/firefox/)
+- [LibreWolf](https://librewolf.net/) - Privacy-hardened Firefox fork
 - [Rich](https://github.com/Textualize/rich) - Terminal formatting
 - [Colorama](https://github.com/tartley/colorama) - Cross-platform colors
 

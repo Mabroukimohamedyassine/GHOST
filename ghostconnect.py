@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 GhostConnect - Automated Anonymous Browsing Kill Switch
-A robust CLI tool for creating a secure, anonymous browsing environment
+A robust CLI tool for creating a secure, anonymous browsing environment using LibreWolf + Tor
+Version 2.0 - Refactored with LibreWolf (Pre-hardened browser, no manual configuration needed)
 """
 
 import os
@@ -55,19 +56,20 @@ class GhostConnector:
 ║              ╚█████╔╝╚█████╔╝██║░╚███║██║░╚███║             ║
 ║              ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░╚══╝             ║
 ║                                                               ║
-║          Anonymous Browsing Kill Switch v1.0                 ║
-║                  Cyber Ghost Protocol                        ║
+║          Anonymous Browsing Kill Switch v2.0                 ║
+║               Powered by LibreWolf + Tor                     ║
 ╚═══════════════════════════════════════════════════════════════╝
     """
 
     def __init__(self):
         """Initialize GhostConnector with necessary paths and state"""
         self.tor_process = None
-        self.firefox_process = None
+        self.librewolf_process = None
         self.proxychains_config = Path("/etc/proxychains4.conf")
         self.proxychains_backup = Path("/etc/proxychains4.conf.ghost.bak")
-        self.firefox_profile_name = "GhostProfile"
-        self.firefox_profile_path: Optional[Path] = None
+        self.sudo_user = os.environ.get('SUDO_USER', 'root')
+        self.sudo_uid = os.environ.get('SUDO_UID')
+        self.sudo_gid = os.environ.get('SUDO_GID')
 
         if RICH_AVAILABLE:
             self.console = Console()
@@ -154,15 +156,15 @@ class GhostConnector:
         """Check and install required dependencies"""
         self._print("Checking dependencies...", "info")
 
-        dependencies = {
+        # Check standard dependencies
+        standard_deps = {
             "tor": "tor",
-            "proxychains4": "proxychains4",
-            "firefox": "firefox-esr"
+            "proxychains4": "proxychains4"
         }
 
         missing_deps = []
 
-        for cmd, package in dependencies.items():
+        for cmd, package in standard_deps.items():
             result = self._run_command(["which", cmd], check=False, capture=True)
             if not result or result.returncode != 0:
                 missing_deps.append(package)
@@ -170,6 +172,16 @@ class GhostConnector:
             else:
                 self._print(f"{cmd} found: {result.stdout.strip()}", "success")
 
+        # Check for LibreWolf
+        librewolf_result = self._run_command(["which", "librewolf"], check=False, capture=True)
+        librewolf_missing = not librewolf_result or librewolf_result.returncode != 0
+
+        if librewolf_missing:
+            self._print("librewolf not found", "warning")
+        else:
+            self._print(f"librewolf found: {librewolf_result.stdout.strip()}", "success")
+
+        # Install standard dependencies if missing
         if missing_deps:
             self._print(f"Missing dependencies: {', '.join(missing_deps)}", "warning")
             self._print("Installing missing dependencies...", "info")
@@ -187,10 +199,98 @@ class GhostConnector:
                     self._print(f"Failed to install {package}", "error")
                     return False
                 self._print(f"{package} installed successfully", "success")
-        else:
+
+        # Handle LibreWolf installation separately
+        if librewolf_missing:
+            if not self._install_librewolf():
+                self._print("Failed to install LibreWolf", "error")
+                return False
+
+        if not missing_deps and not librewolf_missing:
             self._print("All dependencies satisfied", "success")
 
         return True
+
+    def _install_librewolf(self) -> bool:
+        """Install LibreWolf browser with repository setup"""
+        self._print("Installing LibreWolf...", "info")
+
+        try:
+            # Install prerequisites
+            self._print("Installing prerequisites (wget, gpg, apt-transport-https)...", "info")
+            prereqs = ["wget", "gpg", "apt-transport-https", "lsb-release"]
+
+            for prereq in prereqs:
+                result = self._run_command(["which", prereq.split('-')[0]], check=False, capture=True)
+                if not result or result.returncode != 0:
+                    self._run_command(["apt", "install", "-y", prereq], check=False)
+
+            # Get distribution codename
+            result = self._run_command(["lsb_release", "-sc"], check=False, capture=True)
+            if not result or result.returncode != 0:
+                self._print("Could not determine distribution codename", "error")
+                return False
+
+            distro = result.stdout.strip()
+            self._print(f"Detected distribution: {distro}", "info")
+
+            # Download and add LibreWolf GPG key
+            self._print("Adding LibreWolf GPG key...", "info")
+            gpg_keyring = Path("/usr/share/keyrings/librewolf.gpg")
+
+            # Download keyring
+            if not self._run_command([
+                "wget", "-qO-", "https://deb.librewolf.net/keyring.gpg"
+            ], check=False, capture=False):
+                self._print("Failed to download LibreWolf GPG key", "warning")
+                # Try alternative method
+                self._run_command([
+                    "bash", "-c",
+                    "wget -qO- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
+                ], check=False)
+            else:
+                # Dearmor and save the key
+                self._run_command([
+                    "bash", "-c",
+                    "wget -qO- https://deb.librewolf.net/keyring.gpg | gpg --dearmor -o /usr/share/keyrings/librewolf.gpg"
+                ], check=False)
+
+            # Add LibreWolf repository
+            self._print("Adding LibreWolf repository...", "info")
+            repo_line = f"deb [arch=amd64 signed-by=/usr/share/keyrings/librewolf.gpg] http://deb.librewolf.net {distro} main"
+            sources_list = Path("/etc/apt/sources.list.d/librewolf.list")
+
+            try:
+                sources_list.write_text(repo_line + "\n")
+                self._print(f"Repository added to {sources_list}", "success")
+            except Exception as e:
+                self._print(f"Failed to write repository file: {str(e)}", "error")
+                return False
+
+            # Update package list
+            self._print("Updating package list with LibreWolf repository...", "info")
+            if not self._run_command(["apt", "update"], check=False):
+                self._print("Failed to update package list", "error")
+                return False
+
+            # Install LibreWolf
+            self._print("Installing LibreWolf package...", "info")
+            if not self._run_command(["apt", "install", "-y", "librewolf"], check=False):
+                self._print("Failed to install LibreWolf package", "error")
+                return False
+
+            # Verify installation
+            verify = self._run_command(["which", "librewolf"], check=False, capture=True)
+            if verify and verify.returncode == 0:
+                self._print(f"LibreWolf installed successfully: {verify.stdout.strip()}", "success")
+                return True
+            else:
+                self._print("LibreWolf installation verification failed", "error")
+                return False
+
+        except Exception as e:
+            self._print(f"Error during LibreWolf installation: {str(e)}", "error")
+            return False
 
     def configure_proxychains(self) -> bool:
         """Configure ProxyChains for Tor"""
@@ -225,170 +325,6 @@ socks5 127.0.0.1 9050
 
         except Exception as e:
             self._print(f"Failed to configure ProxyChains: {str(e)}", "error")
-            return False
-
-    def _get_firefox_profile_path(self) -> Optional[Path]:
-        """Locate the Firefox profile directory for GhostProfile"""
-        # Common Firefox profile locations
-        profile_base_paths = [
-            Path.home() / ".mozilla" / "firefox",
-            Path("/root/.mozilla/firefox")
-        ]
-
-        for base_path in profile_base_paths:
-            if not base_path.exists():
-                continue
-
-            profiles_ini = base_path / "profiles.ini"
-            if profiles_ini.exists():
-                # Parse profiles.ini to find GhostProfile
-                content = profiles_ini.read_text()
-                in_ghost_section = False
-
-                for line in content.split('\n'):
-                    line = line.strip()
-                    if f'Name={self.firefox_profile_name}' in line or f'name={self.firefox_profile_name}' in line:
-                        in_ghost_section = True
-                    elif in_ghost_section and (line.startswith('Path=') or line.startswith('path=')):
-                        profile_dir = line.split('=', 1)[1].strip()
-
-                        # Check if path is relative or absolute
-                        if line.lower().startswith('path=') and not profile_dir.startswith('/'):
-                            profile_path = base_path / profile_dir
-                        else:
-                            profile_path = Path(profile_dir)
-
-                        if profile_path.exists():
-                            return profile_path
-                    elif line.startswith('[') and in_ghost_section:
-                        # Moved to next section
-                        break
-
-        return None
-
-    def create_firefox_profile(self) -> bool:
-        """Create isolated Firefox profile with privacy settings"""
-        self._print("Setting up Firefox GhostProfile...", "info")
-
-        # Check if profile already exists
-        self.firefox_profile_path = self._get_firefox_profile_path()
-
-        if not self.firefox_profile_path:
-            self._print(f"Creating new Firefox profile: {self.firefox_profile_name}", "info")
-
-            # Create profile
-            result = self._run_command([
-                "firefox",
-                "-CreateProfile",
-                self.firefox_profile_name
-            ], check=False, capture=True)
-
-            if not result or result.returncode != 0:
-                self._print("Failed to create Firefox profile", "error")
-                return False
-
-            # Wait a moment for profile creation
-            time.sleep(1)
-
-            # Get the newly created profile path
-            self.firefox_profile_path = self._get_firefox_profile_path()
-
-            if not self.firefox_profile_path:
-                self._print("Profile created but could not locate directory", "error")
-                return False
-
-            self._print(f"Profile created at: {self.firefox_profile_path}", "success")
-        else:
-            self._print(f"Found existing GhostProfile at: {self.firefox_profile_path}", "success")
-
-        # Inject privacy settings into user.js
-        return self._inject_privacy_settings()
-
-    def _inject_privacy_settings(self) -> bool:
-        """Inject privacy settings into Firefox profile's user.js"""
-        if not self.firefox_profile_path:
-            self._print("Profile path not set", "error")
-            return False
-
-        user_js_path = self.firefox_profile_path / "user.js"
-
-        self._print("Injecting privacy settings into user.js...", "info")
-
-        # Comprehensive privacy settings
-        privacy_settings = """// GhostConnect Privacy Configuration
-// Disable WebRTC to prevent IP leaks
-user_pref("media.peerconnection.enabled", false);
-user_pref("media.peerconnection.ice.default_address_only", true);
-user_pref("media.peerconnection.ice.no_host", true);
-user_pref("media.peerconnection.ice.proxy_only_if_behind_proxy", true);
-
-// Disable IPv6 to prevent leaks
-user_pref("network.dns.disableIPv6", true);
-
-// Set proxy type to Direct (ProxyChains handles routing externally)
-user_pref("network.proxy.type", 0);
-
-// Disable WebGL (fingerprinting)
-user_pref("webgl.disabled", true);
-
-// Disable geo-location
-user_pref("geo.enabled", false);
-
-// Disable telemetry
-user_pref("toolkit.telemetry.enabled", false);
-user_pref("toolkit.telemetry.unified", false);
-user_pref("toolkit.telemetry.archive.enabled", false);
-
-// Disable Firefox Studies
-user_pref("app.shield.optoutstudies.enabled", false);
-
-// Disable Pocket
-user_pref("extensions.pocket.enabled", false);
-
-// Disable DNS prefetching
-user_pref("network.dns.disablePrefetch", true);
-user_pref("network.dns.disablePrefetchFromHTTPS", true);
-
-// Disable link prefetching
-user_pref("network.prefetch-next", false);
-
-// Disable predictor
-user_pref("network.predictor.enabled", false);
-
-// Disable search suggestions
-user_pref("browser.search.suggest.enabled", false);
-user_pref("browser.urlbar.suggest.searches", false);
-
-// Clear on shutdown
-user_pref("privacy.sanitize.sanitizeOnShutdown", true);
-user_pref("privacy.clearOnShutdown.cache", true);
-user_pref("privacy.clearOnShutdown.cookies", true);
-user_pref("privacy.clearOnShutdown.offlineApps", true);
-
-// Resist fingerprinting
-user_pref("privacy.resistFingerprinting", true);
-
-// First party isolation
-user_pref("privacy.firstparty.isolate", true);
-
-// Disable battery API
-user_pref("dom.battery.enabled", false);
-
-// Disable gamepad API
-user_pref("dom.gamepad.enabled", false);
-
-// Disable virtual reality devices
-user_pref("dom.vr.enabled", false);
-
-// GhostConnect Configuration Applied
-"""
-
-        try:
-            user_js_path.write_text(privacy_settings)
-            self._print(f"Privacy settings written to {user_js_path}", "success")
-            return True
-        except Exception as e:
-            self._print(f"Failed to write user.js: {str(e)}", "error")
             return False
 
     def start_tor_service(self) -> bool:
@@ -456,48 +392,88 @@ user_pref("dom.vr.enabled", false);
         except Exception:
             return False
 
-    def launch_firefox(self) -> bool:
-        """Launch Firefox through ProxyChains with GhostProfile"""
-        self._print("Launching Firefox in Ghost Mode...", "info")
+    def launch_librewolf(self) -> bool:
+        """Launch LibreWolf through ProxyChains in private mode"""
+        self._print("Launching LibreWolf in Ghost Mode...", "info")
 
         try:
-            # Launch Firefox with ProxyChains
-            self.firefox_process = subprocess.Popen([
-                "proxychains4",
-                "firefox",
-                "-P", self.firefox_profile_name,
-                "--no-remote"
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Prepare environment for running as SUDO_USER
+            env = os.environ.copy()
 
-            self._print("Firefox launched successfully", "success")
+            # Get user's home directory
+            if self.sudo_user and self.sudo_user != 'root':
+                home_dir = Path(f"/home/{self.sudo_user}")
+                env['HOME'] = str(home_dir)
+                env['USER'] = self.sudo_user
+
+                # Set XDG runtime directory
+                if self.sudo_uid:
+                    env['XDG_RUNTIME_DIR'] = f"/run/user/{self.sudo_uid}"
+
+                self._print(f"Running LibreWolf as user: {self.sudo_user}", "info")
+
+            # Launch LibreWolf with ProxyChains
+            # Use preexec_fn to drop privileges if we have SUDO_UID/GID
+            preexec = None
+            if self.sudo_uid and self.sudo_gid:
+                uid = int(self.sudo_uid)
+                gid = int(self.sudo_gid)
+
+                def demote():
+                    """Demote process to run as SUDO_USER"""
+                    os.setgid(gid)
+                    os.setuid(uid)
+
+                preexec = demote
+
+            # Launch command
+            self.librewolf_process = subprocess.Popen([
+                "proxychains4",
+                "librewolf",
+                "--private-window",
+                "https://check.torproject.org"
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            preexec_fn=preexec)
+
+            self._print("LibreWolf launched successfully", "success")
             self._print("Ghost Mode Active - Anonymous browsing enabled", "success")
+            self._print("LibreWolf will open to Tor Check page", "info")
             self._print("Press CTRL+C to deactivate Ghost Mode", "warning")
 
-            # Wait for Firefox to exit
-            self.firefox_process.wait()
+            # Wait for LibreWolf to exit
+            self.librewolf_process.wait()
 
             return True
 
         except Exception as e:
-            self._print(f"Failed to launch Firefox: {str(e)}", "error")
+            self._print(f"Failed to launch LibreWolf: {str(e)}", "error")
             return False
 
     def cleanup(self):
         """Clean up resources and stop services"""
         self._print("Initiating Ghost Mode shutdown...", "warning")
 
-        # Kill Firefox if running
-        if self.firefox_process:
+        # Kill LibreWolf if running
+        if self.librewolf_process:
             try:
-                self._print("Terminating Firefox...", "info")
-                self.firefox_process.terminate()
-                self.firefox_process.wait(timeout=5)
-                self._print("Firefox terminated", "success")
+                self._print("Terminating LibreWolf...", "info")
+                self.librewolf_process.terminate()
+                self.librewolf_process.wait(timeout=5)
+                self._print("LibreWolf terminated", "success")
             except subprocess.TimeoutExpired:
-                self._print("Force killing Firefox...", "warning")
-                self.firefox_process.kill()
+                self._print("Force killing LibreWolf...", "warning")
+                self.librewolf_process.kill()
             except Exception as e:
-                self._print(f"Error terminating Firefox: {str(e)}", "error")
+                self._print(f"Error terminating LibreWolf: {str(e)}", "error")
+
+        # Also ensure no stray LibreWolf processes
+        try:
+            self._run_command(["pkill", "-9", "librewolf"], check=False)
+        except Exception:
+            pass
 
         # Stop Tor service
         self._print("Stopping Tor service...", "info")
@@ -535,12 +511,9 @@ user_pref("dom.vr.enabled", false);
                 self._print("ProxyChains configuration failed", "error")
                 return False
 
-            if not self.create_firefox_profile():
-                self._print("Firefox profile setup failed", "error")
-                return False
-
             # Phase 2: Launch
             self._print("\n=== Phase 2: Activating Ghost Mode ===", "info")
+            self._print("LibreWolf is pre-hardened - No manual configuration needed!", "success")
 
             if not self.start_tor_service():
                 self._print("Tor service failed to start", "error")
@@ -551,10 +524,10 @@ user_pref("dom.vr.enabled", false);
                 self.cleanup()
                 return False
 
-            # Launch Firefox
-            self.launch_firefox()
+            # Launch LibreWolf
+            self.launch_librewolf()
 
-            # Phase 3: Cleanup (triggered by Firefox exit or CTRL+C)
+            # Phase 3: Cleanup (triggered by LibreWolf exit or CTRL+C)
             self._print("\n=== Phase 3: Cleanup ===", "info")
             self.cleanup()
 
