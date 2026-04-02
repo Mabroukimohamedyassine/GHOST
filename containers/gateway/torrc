@@ -22,3 +22,11 @@ DataDirectory /var/lib/tor
 # Avoid logging sensitive information
 SafeLogging 1
 Log notice stdout
+
+# Enable Control Port for Python orchestration from host
+ControlPort 0.0.0.0:9051
+CookieAuthentication 0
+
+# Geolocation resolution for circuits
+GeoIPFile /usr/share/tor/geoip
+GeoIPv6File /usr/share/tor/geoip6

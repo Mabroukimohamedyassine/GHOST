@@ -13,6 +13,8 @@ services:
     restart: always
     environment:
       - TOR_CONTROL_PORT=${TOR_CONTROL_PORT}
+    ports:
+      - "127.0.0.1:9051:9051"
 
   workstation:
     build: ./containers/workstation
@@ -37,13 +39,15 @@ services:
     container_name: ghost-browser
     depends_on:
       - gateway
+    cap_add:
+      - NET_ADMIN # Required to delete default route and redirect to gateway
     networks:
       ghost_net:
         ipv4_address: 10.0.0.4
     ports:
-      - "8080:8080" # Web VNC port
+      - "8081:8081" # noVNC web desktop (Tor Browser) — separate from Workstation's 8080
     environment:
-      - VNC_PASSWORDS=${VNC_PASSWORDS}
+      - GATEWAY_IP=10.0.0.2
 
 networks:
   ghost_net:
