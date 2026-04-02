@@ -1,0 +1,31 @@
+GHOST-v3/
+├── docker-compose.yml          # The Orchestrator: Links the Gateway, Workstation, and Browser
+├── .env                        # Environment variables (e.g., TOR_CIRCUIT_RENEWAL=30s)
+├── src/                        # Core Python Logic (Modularized)
+│   ├── main.py                 # Entry point: Orchestrates the Docker lifecycle
+│   ├── network/                # Network Manager: Handles iptables & Tor status
+│   │   ├── __init__.py
+│   │   ├── firewall.py         # The "Kill-Switch" logic (iptables/nftables)
+│   │   └── tor_controller.py   # Manages Tor circuits and DNS proxying
+│   ├── ui/                     # UI Manager: CLI formatting & interaction
+│   │   ├── __init__.py
+│   │   └── interface.py        # Rich/Colorama implementation for the terminal
+│   └── tools/                  # Tool Manager: Orchestrates browser & pentest binaries
+│       ├── __init__.py
+│       ├── browser_launcher.py # Automates Tor Browser Bundle (TBB) interaction
+│       └── scanner_wrapper.py  # Safe-wraps nmap/metasploit for Tor compatibility
+├── containers/                 # Docker Infrastructure
+│   ├── gateway/                # Container A: The "Middlebox"
+│   │   ├── Dockerfile
+│   │   └── torrc               # Hardened Tor configuration
+│   ├── workstation/            # Container B: Kali-based Workspace
+│   │   ├── Dockerfile
+│   │   └── entrypoint.sh       # Sets up local routes to the Gateway
+│   └── browser/                # Container C: The VNC Tor Browser
+│       ├── Dockerfile
+│       └── supervisord.conf    # Manages Xvfb, VNC, and Tor Browser
+├── configs/                    # Static configuration templates
+│   └── iptables_rules.v4       # The Fail-Closed firewall rules
+└── tests/                      # Automated Verification
+    ├── test_networking.py      # Verifies no leaks occur during execution
+    └── test_modules.py         # Unit tests for the Managers

@@ -1,0 +1,24 @@
+# Basic Tor configuration
+AutomapHostsOnResolve 1
+
+# Transparent Proxy (TransPort) - Catches all routed TCP traffic
+TransPort 0.0.0.0:9040
+
+# DNS Proxy (DNSPort) - Catches all routed UDP DNS requests
+DNSPort 0.0.0.0:5353
+
+# SOCKS Proxy - For applications that natively support SOCKS5
+SocksPort 0.0.0.0:9050
+
+# Prevent the container from trying to route local network ranges over Tor
+VirtualAddrNetworkIPv4 10.192.0.0/10
+
+# Disable IPv6 to prevent leaks (assuming an IPv4 internal bridge)
+ClientUseIPv6 0
+
+# Security: Run as a non-root user (configured in Dockerfile to be the 'tor' user)
+DataDirectory /var/lib/tor
+
+# Avoid logging sensitive information
+SafeLogging 1
+Log notice stdout

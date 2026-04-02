@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: ./containers/gateway
+    container_name: ghost-gateway
+    cap_add:
+      - NET_ADMIN
+    networks:
+      ghost_net:
+        ipv4_address: 10.0.0.2
+    # Ensure gateway starts first and stays up
+    restart: always
+    environment:
+      - TOR_CONTROL_PORT=${TOR_CONTROL_PORT}
+
+  workstation:
+    build: ./containers/workstation
+    container_name: ghost-workstation
+    depends_on:
+      - gateway
+    cap_add:
+      - NET_ADMIN # Required to delete default route and redirect to gateway
+    networks:
+      ghost_net:
+        ipv4_address: 10.0.0.3
+    volumes:
+      - ${MOUNT_PATH}:/root/ghost_files
+    ports:
+      - "8080:8080" # noVNC web desktop access
+    environment:
+      - GATEWAY_IP=10.0.0.2
+      - KALI_METAPACKAGES=${KALI_METAPACKAGES}
+
+  browser:
+    build: ./containers/browser
+    container_name: ghost-browser
+    depends_on:
+      - gateway
+    networks:
+      ghost_net:
+        ipv4_address: 10.0.0.4
+    ports:
+      - "8080:8080" # Web VNC port
+    environment:
+      - VNC_PASSWORDS=${VNC_PASSWORDS}
+
+networks:
+  ghost_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
+    internal: true # Constraint solved: No external physical interfaces exposed
