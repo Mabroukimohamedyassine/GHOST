@@ -1,0 +1,34 @@
+# GHOST-v3 Git Ignore File
+
+# Environment Variables
+.env
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs and Temporary files
+*_logs.txt
+gateway_logs.txt
+clean_logs.txt
+ps_output.txt
+hash.txt
+clean_hash.txt
+
+# VS Code
+.vscode/
+
+# Project specific
+Architecture.txt
+test_*.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
