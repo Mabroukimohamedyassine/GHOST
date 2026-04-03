@@ -23,8 +23,7 @@ from typing import Optional
 from stem import Signal
 from stem.control import Controller
 from stem.connection import AuthenticationFailure, MissingPassword
-from stem.socket import SocketError
-
+from stem import SocketError
 # Configure module-level logger matching the main orchestrator's format
 logger = logging.getLogger("ghost.tor_controller")
 logger.setLevel(logging.INFO)
@@ -72,7 +71,10 @@ class TorController:
                 logger.warning("TOR_CONTROL_PORT is invalid; defaulting to 9051.")
                 self.port = 9051
                 
-        self.password = password
+        if password is not None:
+            self.password = password
+        else:
+            self.password = os.environ.get("TOR_CONTROL_PASSWORD")
         self._controller: Optional[Controller] = None
 
     def connect_and_authenticate(self) -> bool:
@@ -125,6 +127,49 @@ class TorController:
             except Exception:
                 pass
             self._controller = None
+
+    def wait_for_bootstrap(self, timeout: int = 120, poll_interval: int = 2) -> bool:
+        """
+        Blocks execution and polls the Tor Control Port until Tor reaches 100% readiness.
+        
+        Args:
+            timeout: Maximum time to wait in seconds (bootstrapping can take up to 2 minutes).
+            poll_interval: Seconds to wait between polls.
+            
+        Returns:
+            bool: True if bootstrap reaches 100% within the timeout, False otherwise.
+        """
+        if not self._controller or not self._controller.is_authenticated():
+            logger.warning("Tor Controller is not connected. Attempting to connect now...")
+            if not self.connect_and_authenticate():
+                logger.error("Could not wait for bootstrap: Tor control connection unavailable.")
+                return False
+
+        logger.info("Initializing Tor circuit synchronization... Waiting for 100% bootstrap.")
+        import time
+        start_time = time.time()
+        
+        while (time.time() - start_time) < timeout:
+            try:
+                # 'status/bootstrap-phase' returns a string like:
+                # 'NOTICE BOOTSTRAP PROGRESS=100 TAG=done SUMMARY="Done"'
+                bootstrap_status = self._controller.get_info("status/bootstrap-phase")
+                
+                # Check for 100% readiness tag
+                if "PROGRESS=100 TAG=done" in bootstrap_status:
+                    logger.info("Tor bootstrap complete! The Gateway is fully synchronized.")
+                    return True
+                else:
+                    # Provide informative debug log instead of spamming info
+                    logger.debug(f"Tor bootstrap progress: {bootstrap_status.strip()}")
+                    
+            except Exception as e:
+                logger.warning(f"Error querying bootstrap status (Tor may be initializing API): {e}")
+                
+            time.sleep(poll_interval)
+            
+        logger.error(f"Tor failed to bootstrap within {timeout} seconds. Network may be degraded.")
+        return False
 
     def rotate_ip(self) -> bool:
         """

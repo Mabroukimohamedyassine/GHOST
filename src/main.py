@@ -206,7 +206,40 @@ class GhostOrchestrator:
         """
         logger.info("═══ GHOST-v3 — Bringing containers UP ═══")
         self._compose("up", "-d", "--build")
-        logger.info("═══ All containers are running. ═══")
+        logger.info("═══ Containers pushed to Docker. Waiting for Tor network synchronization ═══")
+        
+        # Dynamically import to avoid circular references during package boot
+        import time
+        import sys
+        import socket
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from network.tor_controller import TorController
+        
+        logger.info("Waiting for Tor Gateway to open Control Port (9051)...")
+        port_open = False
+        for _ in range(30):
+            try:
+                with socket.create_connection(('127.0.0.1', 9051), timeout=1):
+                    port_open = True
+                    break
+            except (ConnectionRefusedError, socket.timeout, OSError):
+                time.sleep(1)
+        
+        if port_open:
+            tc = TorController()
+            # Give Tor a fractional second to initialize its API after binding the port
+            time.sleep(0.5)
+            if tc.connect_and_authenticate():
+                if tc.wait_for_bootstrap(timeout=120):
+                    logger.info("═══ All containers are synchronized and fully operational. ═══")
+                else:
+                    logger.error("═══ Tor bootstrap timeout! Network may be degraded. ═══")
+            else:
+                logger.error("═══ Could not authenticate to Tor Gateway control port. ═══")
+            
+            tc.disconnect()
+        else:
+            logger.error("═══ Could not connect to Tor Gateway for synchronization. Port 9051 refused connection. ═══")
 
     # ──────────────────────────────────────────────────────────────────
     #  LIFECYCLE: TEAR DOWN  (the critical path)

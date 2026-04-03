@@ -17,9 +17,9 @@ RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'iptables -t nat -A PREROUTING -i eth0 -p udp --dport 53 -j REDIRECT --to-ports 5353' >> /entrypoint.sh && \
     # Redirect all TCP traffic passing through to Tor's TransPort
     echo 'iptables -t nat -A PREROUTING -i eth0 -p tcp --syn -j REDIRECT --to-ports 9040' >> /entrypoint.sh && \
-    # Drop everything that bypasses the Tor proxy to prevent leaks
+    # Reject everything that bypasses the Tor proxy to prevent leaks and provide diagnostic feedback
     echo 'iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT' >> /entrypoint.sh && \
-    echo 'iptables -A FORWARD -j DROP' >> /entrypoint.sh && \
+    echo 'iptables -A FORWARD -j REJECT --reject-with icmp-admin-prohibited' >> /entrypoint.sh && \
     echo 'echo "Starting Tor..."' >> /entrypoint.sh && \
     echo 'exec su -s /bin/sh -c "tor -f /etc/tor/torrc" tor' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh

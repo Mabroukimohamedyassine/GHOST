@@ -1,0 +1,2 @@
+﻿Apr 02 22:09:31.570 [warn] You are running Tor as root. You don't need to, and you probably shouldn't.
+16:19F6C84F78089E68608E55FA62E2F06B9A0A8C9BFE011B0EECB40C3077

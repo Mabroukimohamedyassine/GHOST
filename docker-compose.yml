@@ -55,4 +55,6 @@ networks:
     ipam:
       config:
         - subnet: 10.0.0.0/24
-    internal: true # Constraint solved: No external physical interfaces exposed
+    # internal: true cannot be used here because the Gateway MUST have an external route
+    # to connect to the Tor network, and we need host port mappings for the UI.
+    # Isolation is fully managed by our iptables rules and Workstation routing anyway.

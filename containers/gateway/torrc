@@ -25,7 +25,7 @@ Log notice stdout
 
 # Enable Control Port for Python orchestration from host
 ControlPort 0.0.0.0:9051
-CookieAuthentication 0
+HashedControlPassword 16:19F6C84F78089E68608E55FA62E2F06B9A0A8C9BFE011B0EECB40C3077
 
 # Geolocation resolution for circuits
 GeoIPFile /usr/share/tor/geoip

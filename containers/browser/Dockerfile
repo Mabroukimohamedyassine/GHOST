@@ -105,20 +105,19 @@ RUN useradd -m -s /bin/bash -d /home/ghost_browser ghost_browser
 # The version is pinned via TBB_VERSION for reproducible builds.
 # Update this variable to upgrade the Tor Browser.
 # --------------------------------------------------------------------------
-ENV TBB_VERSION=14.0.9
-ENV TBB_LANG=en-US
+ENV TBB_VERSION="13.0.14"
 ENV TBB_ARCH=linux-x86_64
-ENV TBB_DIST=https://dist.torproject.org/torbrowser/${TBB_VERSION}
-ENV TBB_FILENAME=tor-browser-${TBB_ARCH}-${TBB_VERSION}_${TBB_LANG}.tar.xz
+ENV TBB_DIST="https://archive.torproject.org/tor-package-archive/torbrowser/${TBB_VERSION}"
+ENV TBB_FILENAME=tor-browser-${TBB_ARCH}-${TBB_VERSION}.tar.xz
 
 WORKDIR /tmp/tbb-install
 
 # Step 4a: Download the Tor Browser archive and its GPG signature
 RUN echo "Downloading Tor Browser Bundle v${TBB_VERSION}..." && \
     curl -fSL -o "${TBB_FILENAME}" \
-        "${TBB_DIST}/${TBB_FILENAME}" && \
+    "${TBB_DIST}/${TBB_FILENAME}" && \
     curl -fSL -o "${TBB_FILENAME}.asc" \
-        "${TBB_DIST}/${TBB_FILENAME}.asc"
+    "${TBB_DIST}/${TBB_FILENAME}.asc"
 
 # Step 4b: Import the Tor Browser Developers' GPG signing key and verify
 # Key fingerprint: EF6E 286D DA85 EA2A 4BA7 DE68 4E2C 6E87 9329 8290
@@ -127,7 +126,7 @@ RUN echo "Downloading Tor Browser Bundle v${TBB_VERSION}..." && \
 RUN echo "Importing Tor Browser Developers signing key..." && \
     gpg --auto-key-locate nodefault,wkd --locate-keys torbrowser@torproject.org || \
     gpg --keyserver keyserver.ubuntu.com \
-        --recv-keys 0xEF6E286DDA85EA2A4BA7DE684E2C6E8793298290 && \
+    --recv-keys 0xEF6E286DDA85EA2A4BA7DE684E2C6E8793298290 && \
     echo "Verifying GPG signature..." && \
     gpg --verify "${TBB_FILENAME}.asc" "${TBB_FILENAME}" && \
     echo "✓ Signature verification PASSED."
